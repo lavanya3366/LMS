@@ -140,28 +140,6 @@ class CourseStructureView(SuperAdminMixin, ClientAdminMixin, ClientMixin, APIVie
                 else:
                     return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # def patch(self, request, course_id):
-    #     try:
-            
-    #         instance_id = request.query_params.get('DeleteCourseStructureInstance_id')
-    #         # Retrieve the course structure instance
-    #         course_structure = CourseStructure.objects.get(course_id=course_id, id=instance_id)
-
-    #         # Check if the course structure instance has already been soft deleted
-    #         if course_structure.deleted_at is not None:
-    #             return Response({'error': 'Course structure already soft deleted'}, status=status.HTTP_400_BAD_REQUEST)
-
-    #         # Soft delete the course structure instance by marking it as deleted
-    #         course_structure.deleted_at = timezone.now()
-    #         course_structure.save()
-
-    #         # Return success response
-    #         return Response({'message': 'Course structure soft deleted successfully'}, status=status.HTTP_200_OK)
-        
-    #     except (CourseStructure.DoesNotExist, ValueError):
-    #         # Return appropriate error response for invalid course structure or instance ID
-    #         return Response({'error': 'Course structure not found'}, status=status.HTTP_404_NOT_FOUND)
-
     def patch(self, request, course_id):
         try:
             # Validate request data using serializer
@@ -397,3 +375,33 @@ class QuizView(SuperAdminMixin, ClientAdminMixin, ClientMixin,APIView):
                 else:
                     return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
+
+class DeleteCourseStructureInstance(SuperAdminMixin,APIView):
+    """
+    API endpoint to soft delete a specific instance of a course from a course structure.
+    """
+
+    def patch(self, request, course_id):
+        try:
+            if not self.has_super_admin_privileges(request):
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            # Get the instance ID from the query parameters
+            instance_id = request.query_params.get('DeleteCourseStructureInstance_id')
+            # Retrieve the course structure instance
+            course_structure = CourseStructure.objects.get(course_id=course_id, id=instance_id)
+
+            # Check if the course structure instance has already been soft deleted
+            if course_structure.deleted_at is not None:
+                return Response({'error': 'Course structure already soft deleted'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Soft delete the course structure instance by marking it as deleted
+            course_structure.deleted_at = timezone.now()
+            course_structure.save()
+
+            # Return success response
+            return Response({'message': 'Course structure soft deleted successfully'}, status=status.HTTP_200_OK)
+        
+        except (CourseStructure.DoesNotExist, ValueError):
+            # Return appropriate error response for invalid course structure or instance ID
+            return Response({'error': 'Course structure not found'}, status=status.HTTP_404_NOT_FOUND)
+

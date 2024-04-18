@@ -16,7 +16,12 @@ from core.custom_mixins import ClientAdminMixin
 from core.custom_permissions import ClientAdminPermission
 from rest_framework import serializers
 from backend.serializers.clientadmindashboard import ActiveEnrolledUserCountSerializer, ProgressDataSerializer, RegisteredCourseCountSerializer  # Import your serializer
-    
+
+from backend.models.coremodels import Customer, User
+from core.custom_mixins import ClientAdminMixin
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from backend.models.allmodels import (
     Course,
     CourseCompletionStatusPerUser,
@@ -137,7 +142,7 @@ class CountClientCompletedCourseView(APIView):
 # =================================================================
 # employer dashboard
 # =================================================================
-  # Import your User model
+ # Import your User model
 class ActiveEnrolledUserCountPerCustomerView(APIView):
     """
     Get API for counting active enrolled users per customer ID.
@@ -145,10 +150,11 @@ class ActiveEnrolledUserCountPerCustomerView(APIView):
     permission_classes = [ClientAdminPermission]
     def get(self, request):
         try:
+
             serializer = ActiveEnrolledUserCountSerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
             customer_id = serializer.validated_data.get('customer_id')
-            # Query the User model to count the number of users for the given customer ID
+            # Retrieve the customer ID from the request query parameters
             user_count = User.objects.filter(customer_id=customer_id, status='active').count()
             # Return the count in the response
             return Response({"user_count": user_count}, status=status.HTTP_200_OK)
@@ -156,17 +162,18 @@ class ActiveEnrolledUserCountPerCustomerView(APIView):
             error_message = e.detail if isinstance(e, serializers.ValidationError) else str(e)
             return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
+
+
 class RegisteredCourseCountView(APIView):
     """
     Get API for client admin to count registered active courses per customer ID.
     """
     permission_classes = [ClientAdminPermission]
-
     def get(self, request):
         try:
             serializer = RegisteredCourseCountSerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
-
+            # Extract customer ID from request query parameters
             customer_id = serializer.validated_data.get('customer_id')
             registered_course_counts = CourseRegisterRecord.objects.filter(
                 customer_id=customer_id, 
@@ -174,9 +181,7 @@ class RegisteredCourseCountView(APIView):
                 course__active=True  # Only active courses
             ).values('course').distinct().count()
             # Your existing logic to count registered active courses per customer ID
-            
             response_data = {
-                'customer_id': customer_id,
                 'active_course_count': registered_course_counts
             }
             return Response(response_data)
@@ -190,7 +195,12 @@ class RegisteredCourseCountView(APIView):
 
 #---------
 # graph : (per course)(for a customer) [employeer (client admin) dashboard]
-class ProgressCountView(APIView):
+
+
+
+
+class ProgressCountView(ClientAdminMixin,APIView):
+
     """
     API endpoint to get the count of users in different progress states for each registered course.
     """
@@ -206,6 +216,22 @@ class ProgressCountView(APIView):
                 if CourseCompletionStatusPerUser.objects.filter(course=course, active=True, status=False).exists():
                     # Skip counting progress for this course if status is inactive
                     continue
+            # Fetch all active courses
+            active_courses = Course.objects.filter(active=True)
+
+            progress_data = []
+
+            # Iterate over each active course
+            for course in active_courses:
+                # Fetch course title
+                course_title = course.title
+                
+                # Check if the course is active in CourseCompletionStatusPerUser
+                if CourseCompletionStatusPerUser.objects.filter(course=course, active=True, status=False).exists():
+                    # Skip counting progress for this course if status is inactive
+                    continue
+
+
                 # Count the number of users in different progress states for each course
                 completion_count = CourseCompletionStatusPerUser.objects.filter(
                     course=course, status="completed", active=True
@@ -225,6 +251,7 @@ class ProgressCountView(APIView):
                 })
                 serializer = ProgressDataSerializer(progress_data, many=True)
                 return Response(progress_data)
+            return Response(progress_data)
         except ObjectDoesNotExist as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

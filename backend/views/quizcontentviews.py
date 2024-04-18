@@ -318,3 +318,4 @@ def dummy_quiz_index(request, course_id):
     return render(request, 'quiz_index.html', {'course_id': course_id, 'course': course})
 
 
+
