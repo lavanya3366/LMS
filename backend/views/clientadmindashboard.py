@@ -199,7 +199,7 @@ class RegisteredCourseCountView(APIView):
 
 
 
-class ProgressCountView(ClientAdminMixin,APIView):
+class ProgressCountView(APIView):
 
     """
     API endpoint to get the count of users in different progress states for each registered course.
@@ -207,40 +207,33 @@ class ProgressCountView(ClientAdminMixin,APIView):
     permission_classes = [ClientAdminPermission]
     def get(self, request):
         try:
+            user= request.data.get('user')
             # Fetch all active courses
-            active_courses = Course.objects.filter(active=True)
+            active_course_ids = CourseCompletionStatusPerUser.objects.filter(
+                enrolled_user__customer__id=user['customer'], active=True
+            ).values_list('course_id', flat=True).distinct()
+            # Fetch details of active courses
+            active_courses = Course.objects.filter(id__in=active_course_ids)
             progress_data = []
-            # Iterate over each active course
-            for course in active_courses:
-                course_title = course.title
-                if CourseCompletionStatusPerUser.objects.filter(course=course, active=True, status=False).exists():
-                    # Skip counting progress for this course if status is inactive
-                    continue
-            # Fetch all active courses
-            active_courses = Course.objects.filter(active=True)
-
-            progress_data = []
-
-            # Iterate over each active course
+            # # Iterate over each active course
             for course in active_courses:
                 # Fetch course title
                 course_title = course.title
+                status_record = CourseCompletionStatusPerUser.objects.filter(course=course, active=True, enrolled_user__customer__id=user['customer'])
                 
                 # Check if the course is active in CourseCompletionStatusPerUser
-                if CourseCompletionStatusPerUser.objects.filter(course=course, active=True, status=False).exists():
+                if status_record is None:
                     # Skip counting progress for this course if status is inactive
-                    continue
-
-
+                    return Response({'error':'no course completion status found'},status=status.HTTP_404_NOT_FOUND)
                 # Count the number of users in different progress states for each course
                 completion_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="completed", active=True
+                    course=course, status="completed", active=True, enrolled_user__customer__id=user['customer']
                 ).count()
                 in_progress_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="in_progress", active=True
+                    course=course, status="in_progress", active=True, enrolled_user__customer__id=user['customer']
                 ).count()
                 not_started_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="not_started", active=True
+                    course=course, status="not_started", active=True, enrolled_user__customer__id=user['customer']
                 ).count()
                 # Append course progress data to the progress_data list
                 progress_data.append({
@@ -250,8 +243,7 @@ class ProgressCountView(ClientAdminMixin,APIView):
                     'not_started_count': not_started_count,
                 })
                 serializer = ProgressDataSerializer(progress_data, many=True)
-                return Response(progress_data)
-            return Response(progress_data)
+            return Response(serializer.data)
         except ObjectDoesNotExist as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
