@@ -25,6 +25,7 @@ from rest_framework.views import APIView
 from backend.models.allmodels import (
     Course,
     CourseCompletionStatusPerUser,
+    CourseEnrollment,
     CourseRegisterRecord,
 )
 from rest_framework.exceptions import NotFound, ValidationError
@@ -208,24 +209,28 @@ class ProgressCountView(APIView):
     def get(self, request):
         try:
             user= request.data.get('user')
-            # Fetch all active courses
-            active_course_ids = CourseCompletionStatusPerUser.objects.filter(
-                enrolled_user__customer__id=user['customer'], active=True
-            ).values_list('course_id', flat=True).distinct()
-            # Fetch details of active courses
-            active_courses = Course.objects.filter(id__in=active_course_ids)
+            # we used courseerollment table to start the query of users so that query is made on the courses and users which are active and actively enrolled respectively.
+            active_enrolled = CourseEnrollment.objects.filter(user__customer__id = user['customer'], active = True).values_list('user', flat=True).distinct()
+            active_enrolled_ids = list(active_enrolled.values_list('user', flat=True))
+            
+            if not active_enrolled_ids:
+                # Handle the case where there are no active enrolled users
+                return Response({'error': 'No active enrolled users found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            records = CourseCompletionStatusPerUser.objects.filter(active=True, enrolled_user__in=active_enrolled_ids,deleted_at__isnull=True)
+            
+            active_course_ids = records.values_list('course', flat=True).distinct()
+            print(active_course_ids)
+            active_courses = Course.objects.filter(id__in=active_course_ids, active=True, deleted_at__isnull=True)
+        
             progress_data = []
-            # # Iterate over each active course
             for course in active_courses:
-                # Fetch course title
                 course_title = course.title
-                status_record = CourseCompletionStatusPerUser.objects.filter(course=course, active=True, enrolled_user__customer__id=user['customer'])
-                
-                # Check if the course is active in CourseCompletionStatusPerUser
+                status_record = records.filter(course=course)
+                if not status_record.exists():
+                    return Response({'error': 'no course completion status found'}, status=status.HTTP_404_NOT_FOUND)
                 if status_record is None:
-                    # Skip counting progress for this course if status is inactive
                     return Response({'error':'no course completion status found'},status=status.HTTP_404_NOT_FOUND)
-                # Count the number of users in different progress states for each course
                 completion_count = CourseCompletionStatusPerUser.objects.filter(
                     course=course, status="completed", active=True, enrolled_user__customer__id=user['customer']
                 ).count()
@@ -235,7 +240,6 @@ class ProgressCountView(APIView):
                 not_started_count = CourseCompletionStatusPerUser.objects.filter(
                     course=course, status="not_started", active=True, enrolled_user__customer__id=user['customer']
                 ).count()
-                # Append course progress data to the progress_data list
                 progress_data.append({
                     'course_title': course_title,
                     'completion_count': completion_count,

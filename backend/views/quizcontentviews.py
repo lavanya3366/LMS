@@ -12,7 +12,7 @@ from core.custom_mixins import (
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, render, redirect
 from rest_framework import status
-from backend.serializers.deletecourseserializers import  PatchChoiceSerializer
+from backend.serializers.deletecourseserializers import  DeleteChoiceSerializer
 from django.contrib import messages
 
 
@@ -169,7 +169,7 @@ class ChoicesView(SuperAdminMixin, APIView):
 
     def patch(self, request, question_id):
         try:
-            serializer = PatchChoiceSerializer(data=request.query_params)
+            serializer = DeleteChoiceSerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
             choice_id = serializer.validated_data.get('choice_id')
             choice = Choice.objects.get(id=choice_id, question_id=question_id)
@@ -182,9 +182,11 @@ class ChoicesView(SuperAdminMixin, APIView):
             choice.save()
             # Return success response
             return Response({'message': 'Choice soft deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-        except (ValueError, Choice.DoesNotExist) as e:
-            error_message = 'Choice not found for the given question'
-            return Response({'error': error_message}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            if isinstance(e, (ValidationError)):
+                    return Response({"error": "Validation Error: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     
 

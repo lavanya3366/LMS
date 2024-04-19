@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from backend.models.coremodels import Customer
+
 
 class ActiveEnrolledUserCountSerializer(serializers.Serializer):
     customer_id = serializers.IntegerField(required=True)
@@ -12,7 +14,7 @@ class ActiveEnrolledUserCountSerializer(serializers.Serializer):
         if value <= 0:
             raise serializers.ValidationError("Customer ID must be a positive integer")
         return value
-from backend.models.coremodels import Customer
+    
 class RegisteredCourseCountSerializer(serializers.Serializer):
     customer_id = serializers.IntegerField()
 
@@ -39,11 +41,13 @@ class ProgressDataSerializer(serializers.Serializer):
         """
         Validate that all count fields are positive.
         """
-        if data.get('completion_count', 0) < 0:
+        if not data.get('course_title'):
+            raise serializers.ValidationError("course_title is required")
+        if data.get('completion_count') < 0:
             raise serializers.ValidationError("Completion count must be a positive integer.")
-        if data.get('in_progress_count', 0) < 0:
+        if data.get('in_progress_count') < 0:
             raise serializers.ValidationError("In progress count must be a positive integer.")
-        if data.get('not_started_count', 0) < 0:
+        if data.get('not_started_count') < 0:
             raise serializers.ValidationError("Not started count must be a positive integer.")
 
         return data

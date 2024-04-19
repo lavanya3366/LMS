@@ -2,7 +2,7 @@ from datetime import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from backend.serializers.deletecourseserializers  import PatchCourseStructureSerializer
+from backend.serializers.deletecourseserializers  import DeleteCourseStructureSerializer
 from core.custom_mixins import (
     ClientAdminMixin,
     ClientMixin,
@@ -143,7 +143,7 @@ class CourseStructureView(SuperAdminMixin, ClientAdminMixin, ClientMixin, APIVie
     def patch(self, request, course_id):
         try:
             # Validate request data using serializer
-            serializer = PatchCourseStructureSerializer(data=request.query_params)
+            serializer = DeleteCourseStructureSerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
             instance_id = serializer.validated_data.get('instance_id')
             course_structure = CourseStructure.objects.get(course_id=course_id, id=instance_id)
