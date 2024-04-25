@@ -33,9 +33,9 @@ class RegisteredCourseCountSerializer(serializers.Serializer):
     
 class ProgressDataSerializer(serializers.Serializer):
     course_title = serializers.CharField()
-    completion_count = serializers.IntegerField(min_value=0)
-    in_progress_count = serializers.IntegerField(min_value=0)
-    not_started_count = serializers.IntegerField(min_value=0)
+    completion_count = serializers.IntegerField()
+    in_progress_count = serializers.IntegerField()
+    not_started_count = serializers.IntegerField()
 
     def validate(self, data):
         """

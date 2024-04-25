@@ -220,31 +220,24 @@ class ProgressCountView(APIView):
             records = CourseCompletionStatusPerUser.objects.filter(active=True, enrolled_user__in=active_enrolled_ids,deleted_at__isnull=True)
             
             active_course_ids = records.values_list('course', flat=True).distinct()
-            print(active_course_ids)
             active_courses = Course.objects.filter(id__in=active_course_ids, active=True, deleted_at__isnull=True)
-        
+            print(active_courses)
             progress_data = []
             for course in active_courses:
                 course_title = course.title
-                status_record = records.filter(course=course)
-                if not status_record.exists():
-                    return Response({'error': 'no course completion status found'}, status=status.HTTP_404_NOT_FOUND)
-                if status_record is None:
-                    return Response({'error':'no course completion status found'},status=status.HTTP_404_NOT_FOUND)
-                completion_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="completed", active=True, enrolled_user__customer__id=user['customer']
-                ).count()
-                in_progress_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="in_progress", active=True, enrolled_user__customer__id=user['customer']
-                ).count()
-                not_started_count = CourseCompletionStatusPerUser.objects.filter(
-                    course=course, status="not_started", active=True, enrolled_user__customer__id=user['customer']
-                ).count()
+                status_values = ["completed", "in_progress", "not_started"]
+                counts = {status: records.filter(
+                                course=course, 
+                                status=status, 
+                                active=True, 
+                                enrolled_user__customer__id=user['customer']
+                            ).count() for status in status_values}
+
                 progress_data.append({
                     'course_title': course_title,
-                    'completion_count': completion_count,
-                    'in_progress_count': in_progress_count,
-                    'not_started_count': not_started_count,
+                    'completion_count': counts['completed'],
+                    'in_progress_count': counts['in_progress'],
+                    'not_started_count': counts['not_started'],
                 })
                 serializer = ProgressDataSerializer(progress_data, many=True)
             return Response(serializer.data)

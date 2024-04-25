@@ -183,10 +183,13 @@ class ChoicesView(SuperAdminMixin, APIView):
             # Return success response
             return Response({'message': 'Choice soft deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            if isinstance(e, (ValidationError)):
-                    return Response({"error": "Validation Error: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            error_message = 'Course structure not found'
+            if isinstance(e, serializers.ValidationError):
+                error_message = e.detail
+                status_code = status.HTTP_400_BAD_REQUEST
             else:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                status_code = status.HTTP_404_NOT_FOUND
+            return Response({'error': error_message}, status=status_code)
 
     
 

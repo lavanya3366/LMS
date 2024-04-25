@@ -5,8 +5,8 @@ class DeleteCourseStructureSerializer(serializers.Serializer):
     instance_id = serializers.IntegerField(        required=True,
         min_value=1,
         error_messages={
-            "required": "Choice ID is required.",
-            "min_value": "Choice ID must be a positive integer."
+            "required": "Instance ID is required.",
+            "min_value": "Instance ID must be a positive integer."
         })
 
     def validate_instance_id(self, value):
